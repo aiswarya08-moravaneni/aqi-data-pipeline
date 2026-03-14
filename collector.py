@@ -6,9 +6,15 @@ import time
 # WAQI API TOKEN
 TOKEN = "8d611b0f9b105b783d4ecf9d1a253a76c6c3cfe3"
 
-# PostgreSQL connection (Supabase)
+socket.setdefaulttimeout(30)
+
 conn = psycopg2.connect(
-    "postgresql://postgres:AiS#u2)jkfty@db.oxcycpqjisgegrhewdov.supabase.co:5432/postgres?sslmode=require"
+    host="db.oxcycpqjisgegrhewdov.supabase.co",
+    database="postgres",
+    user="postgres",
+    password="AiS#u2)jkfty",
+    port=5432,
+    sslmode="require"
 )
 
 cursor = conn.cursor()
