@@ -12,7 +12,7 @@ conn = psycopg2.connect(
     database="postgres",
     user="postgres",
     password="AiS#u2)jkfty",
-    port=5432
+    port=5432,
     sslmode="require"
 )
 
