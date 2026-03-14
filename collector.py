@@ -2,6 +2,7 @@ import requests
 import psycopg2
 from datetime import datetime
 import time
+import socket
 
 # WAQI API TOKEN
 TOKEN = "8d611b0f9b105b783d4ecf9d1a253a76c6c3cfe3"
