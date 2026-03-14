@@ -8,7 +8,7 @@ TOKEN = "8d611b0f9b105b783d4ecf9d1a253a76c6c3cfe3"
 
 # PostgreSQL connection (Supabase)
 conn = psycopg2.connect(
-    host="db.oxcycpqjisgegrhewdov.supabase.co",
+    host="postgresql://postgres:AiS#u2)jkfty@db.oxcycpqjisgegrhewdov.supabase.co:5432/postgres?sslmode=require",
     database="postgres",
     user="postgres",
     password="AiS#u2)jkfty",
