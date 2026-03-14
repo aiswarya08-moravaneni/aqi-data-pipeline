@@ -19,7 +19,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install -r aqi-project/requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Run AQI Collector
-        run: python aqi-project/collector.py
+        run: python collector.py
