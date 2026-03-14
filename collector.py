@@ -79,8 +79,5 @@ while True:
 
             print(f"Saved data for {city}")
 
-        time.sleep(2)
 
-    print("Cycle complete. Waiting 1 hour...")
-
-    time.sleep(3600)
+    print("Data collection complete")
