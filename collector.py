@@ -1,26 +1,24 @@
 import requests
 import psycopg2
-from datetime import datetime
-import time
 import socket
+import time
+from datetime import datetime
 
-# WAQI API TOKEN
 TOKEN = "8d611b0f9b105b783d4ecf9d1a253a76c6c3cfe3"
 
 socket.setdefaulttimeout(30)
 
 conn = psycopg2.connect(
-    host="aws-0-ap-south-1.pooler.supabase.com",
+    host="aws-1-ap-south-1.pooler.supabase.com",
+    port=6543,
     database="postgres",
     user="postgres.oxcycpqjisgegrhewdov",
     password="AiS#u2)jkfty",
-    port=6543,
     sslmode="require"
 )
 
 cursor = conn.cursor()
 
-# Stations to monitor
 CITIES = {
     "Tirupati": "@9069",
     "Visakhapatnam": "@12443",
@@ -31,8 +29,11 @@ CITIES = {
     "Delhi": "@11266"
 }
 
+
 def get_city_data(city, station):
+
     try:
+
         url = f"https://api.waqi.info/feed/{station}/?token={TOKEN}"
         response = requests.get(url, timeout=10)
         data = response.json()
@@ -56,31 +57,34 @@ def get_city_data(city, station):
             return record
 
     except Exception as e:
+
         print(f"Error fetching {city}: {e}")
 
     return None
 
 
-while True:
+print("Starting data collection...")
 
-    print("Starting data collection cycle...")
+for city, station in CITIES.items():
 
-    for city, station in CITIES.items():
+    record = get_city_data(city, station)
 
-        record = get_city_data(city, station)
+    if record:
 
-        if record:
+        query = """
+        INSERT INTO aqi_data
+        (timestamp, city, overall_aqi, pm25, pm10, no2, temperature, humidity)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """
 
-            query = """
-            INSERT INTO aqi_data
-            (timestamp, city, overall_aqi, pm25, pm10, no2, temperature, humidity)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-            """
+        cursor.execute(query, record)
+        conn.commit()
 
-            cursor.execute(query, record)
-            conn.commit()
+        print(f"Saved data for {city}")
 
-            print(f"Saved data for {city}")
+    time.sleep(1)
 
+print("Data collection complete")
 
-    print("Data collection complete")
+cursor.close()
+conn.close()
