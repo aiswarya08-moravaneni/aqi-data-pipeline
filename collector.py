@@ -12,7 +12,7 @@ socket.setdefaulttimeout(30)
 conn = psycopg2.connect(
     host="aws-0-ap-south-1.pooler.supabase.com",
     database="postgres",
-    user="postgres",
+    user="postgres.oxcycpqjisgegrhewdov",
     password="AiS#u2)jkfty",
     port=6543,
     sslmode="require"
