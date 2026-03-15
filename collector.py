@@ -10,11 +10,11 @@ TOKEN = "8d611b0f9b105b783d4ecf9d1a253a76c6c3cfe3"
 socket.setdefaulttimeout(30)
 
 conn = psycopg2.connect(
-    host="db.oxcycpqjisgegrhewdov.supabase.co",
+    host="aws-0-ap-south-1.pooler.supabase.com",
     database="postgres",
     user="postgres",
     password="AiS#u2)jkfty",
-    port=5432,
+    port=6543,
     sslmode="require"
 )
 
