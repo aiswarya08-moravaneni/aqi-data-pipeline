@@ -1,0 +1,5 @@
+streamlit
+pandas
+psycopeg2-binary
+plotpy
+streamlit-autorefresh
