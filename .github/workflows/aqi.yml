@@ -22,4 +22,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run AQI Collector
-        run: python collector.py
+        run: python aqi-project/collector.py
