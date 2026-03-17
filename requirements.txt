@@ -1,2 +1,5 @@
 streamlit==1.32.0
-pandas
+pandas==2.2.2
+plotly==5.20.0
+psycopg2-binary==2.9.9
+streamlit-autorefresh==1.0.1
