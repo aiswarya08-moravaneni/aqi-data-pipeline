@@ -41,23 +41,20 @@ df["timestamp"] = pd.to_datetime(df["timestamp"])
 df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 
+from sklearn.ensemble import RandomForestRegressor
+
 def generate_7day_forecast(df):
     df = df.copy()
 
-    # Map correct columns
     df['Date'] = pd.to_datetime(df['timestamp'])
     df['AQI'] = df['overall_aqi']
 
-    # 🚨 REMOVE NULL VALUES (IMPORTANT FIX)
+    # ✅ Clean data
     df = df.dropna(subset=['Date', 'AQI'])
-
-    # 🚨 ALSO REMOVE INVALID VALUES
     df = df[df['AQI'] > 0]
 
-    # If not enough data → stop
-    if len(df) < 5:
-        st.warning("Not enough data to generate forecast")
-        return pd.DataFrame()
+    # ✅ Use only recent data (IMPORTANT)
+    df = df.sort_values("Date").tail(500)
 
     # Convert to ordinal
     df['Date_Ordinal'] = df['Date'].map(datetime.datetime.toordinal)
@@ -65,8 +62,8 @@ def generate_7day_forecast(df):
     X = df[['Date_Ordinal']].values
     y = df['AQI'].values
 
-    # Train model
-    model = LinearRegression()
+    # ✅ Better model
+    model = RandomForestRegressor(n_estimators=100)
     model.fit(X, y)
 
     # Future dates
@@ -75,7 +72,6 @@ def generate_7day_forecast(df):
 
     predictions = model.predict(future_dates)
 
-    # Convert back to normal dates
     forecast_dates = [datetime.date.fromordinal(int(d)) for d in future_dates.flatten()]
 
     forecast_df = pd.DataFrame({
