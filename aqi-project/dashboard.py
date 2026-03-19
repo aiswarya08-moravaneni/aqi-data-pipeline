@@ -54,50 +54,46 @@ def create_sliding_window(data, window_size=5):
     return np.array(X), np.array(y)
 
 
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import train_test_split
+
 def generate_7day_forecast(df):
-    df = df.copy()
-
-    # Prepare data
-    df['AQI'] = df['overall_aqi']
-    df = df.dropna(subset=['AQI'])
-    df = df[df['AQI'] > 0]
-
-    # Sort + take recent data
-    df = df.sort_values("timestamp").tail(500)
-
+    # ... [Your existing data prep: overall_aqi, dropna, tail(500)] ...
     aqi_values = df['AQI'].values
-
     window_size = 5
-
-    # Create sliding window dataset
     X, y = create_sliding_window(aqi_values, window_size)
 
-    # Train model
-    model = RandomForestRegressor(n_estimators=100)
+    # Validation Step: Split data to calculate Error Metric
+    # We use shuffle=False because order matters in Time Series
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    
+    # Calculate Mean Absolute Error (MAE)
+    test_preds = model.predict(X_test)
+    mae = mean_absolute_error(y_test, test_preds)
+
+    # Forecast Logic (re-train on full data for best results)
     model.fit(X, y)
-
-    # Start with last window
     last_window = aqi_values[-window_size:]
-
     predictions = []
 
     for _ in range(7):
         next_pred = model.predict([last_window])[0]
         predictions.append(int(next_pred))
-
-        # Slide window forward
         last_window = np.append(last_window[1:], next_pred)
 
-    # Future dates
     last_date = pd.to_datetime(df['timestamp']).max()
-    forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
-
     forecast_df = pd.DataFrame({
-        'Date': forecast_dates,
+        'Date': [last_date + pd.Timedelta(days=i) for i in range(1, 8)],
         'Predicted AQI': predictions
     })
-
-    return forecast_df
+    
+    # Apply YOUR classification function
+    forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
+    
+    return forecast_df, mae
 # -----------------------------
 # AQI Classification
 # -----------------------------
@@ -226,29 +222,29 @@ season = df.groupby(["month","city"])["overall_aqi"].mean().reset_index()
 fig = px.line(season, x="month", y="overall_aqi", color="city")
 st.plotly_chart(fig, width="stretch", key="season_chart")
 
-st.header("🔮 7-Day AQI Forecast")
-
-forecast_city = st.selectbox("Select City for Forecast", sorted(df["city"].unique()))
-
-forecast_df_input = df[df["city"] == forecast_city]
-
 if st.button("Generate Forecast"):
-    forecast_data = generate_7day_forecast(forecast_df_input)
+    forecast_data, model_mae = generate_7day_forecast(forecast_df_input)
 
-    if forecast_data.empty:
-        st.error("❌ Not enough clean data for prediction")
-    else:
-        st.dataframe(forecast_data, use_container_width=True)
+    if not forecast_data.empty:
+        # Create a "Dashboard Header" with metrics
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Selected City", forecast_city)
+        m2.metric("Model Reliability (MAE)", f"{model_mae:.2f}", help="Average prediction error in AQI units. Lower is better.")
+        m3.metric("Algorithm", "Random Forest")
 
+        st.markdown("---")
+        
+        # Display the table with your custom status labels
+        st.subheader("7-Day Outlook")
+        st.dataframe(forecast_data, use_container_width=True, hide_index=True)
+
+        # Plotting the trend
         fig = px.line(
-            forecast_data,
-            x='Date',
-            y='Predicted AQI',
-            title=f"Predicted AQI Trend - {forecast_city}",
-            markers=True
+            forecast_data, x='Date', y='Predicted AQI',
+            title=f"Future Trend: {forecast_city}",
+            markers=True, text='Status'
         )
-
-        fig.update_traces(line_color='#FF4B4B')
+        fig.update_traces(line_color='#FF4B4B', textposition="top center")
         st.plotly_chart(fig)
 # -----------------------------
 # Metrics
