@@ -53,7 +53,24 @@ def create_sliding_window(data, window_size=5):
 
     return np.array(X), np.array(y)
 
+def generate_7day_forecast(df):
+    df = df.copy()
+    
+    # Safety Check: Ensure the source column exists
+    if 'overall_aqi' in df.columns:
+        df['AQI'] = df['overall_aqi']
+    elif 'aqi' in df.columns:
+        df['AQI'] = df['aqi']
+    else:
+        # If neither exists, we can't proceed
+        return pd.DataFrame(), 0 
 
+    # Drop missing values and keep only valid AQI numbers
+    df = df.dropna(subset=['AQI'])
+    df = df[df['AQI'] > 0]
+    
+    # Rest of your code...
+    aqi_values = df['AQI'].values
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
