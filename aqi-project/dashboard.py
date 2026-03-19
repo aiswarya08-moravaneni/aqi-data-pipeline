@@ -3,7 +3,9 @@ import pandas as pd
 import psycopg2
 import plotly.express as px
 import socket
-
+import numpy as np
+from sklearn.linear_model import LinearRegression
+import datetime
 # -----------------------------
 # Page config
 # -----------------------------
@@ -38,6 +40,39 @@ df["timestamp"] = pd.to_datetime(df["timestamp"])
 # remove unwanted columns
 df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
+
+def generate_7day_forecast(df):
+    df = df.copy()
+
+    # Use your actual columns
+    df['Date'] = pd.to_datetime(df['timestamp'])
+    df['AQI'] = df['overall_aqi']
+
+    # Convert to ordinal
+    df['Date_Ordinal'] = df['Date'].map(datetime.datetime.toordinal)
+
+    X = df[['Date_Ordinal']].values
+    y = df['AQI'].values
+
+    # Train model
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Future dates
+    last_date = df['Date_Ordinal'].max()
+    future_dates = np.array([last_date + i for i in range(1, 8)]).reshape(-1, 1)
+
+    predictions = model.predict(future_dates)
+
+    # Convert back to normal dates
+    forecast_dates = [datetime.date.fromordinal(int(d)) for d in future_dates.flatten()]
+
+    forecast_df = pd.DataFrame({
+        'Date': forecast_dates,
+        'Predicted AQI': predictions.astype(int)
+    })
+
+    return forecast_df
 # -----------------------------
 # AQI Classification
 # -----------------------------
@@ -166,6 +201,27 @@ season = df.groupby(["month","city"])["overall_aqi"].mean().reset_index()
 fig = px.line(season, x="month", y="overall_aqi", color="city")
 st.plotly_chart(fig, width="stretch", key="season_chart")
 
+st.header("🔮 7-Day AQI Forecast")
+
+forecast_city = st.selectbox("Select City for Forecast", sorted(df["city"].unique()))
+
+forecast_df_input = df[df["city"] == forecast_city]
+
+if st.button("Generate Forecast"):
+    forecast_data = generate_7day_forecast(forecast_df_input)
+
+    st.dataframe(forecast_data, use_container_width=True)
+
+    fig = px.line(
+        forecast_data,
+        x='Date',
+        y='Predicted AQI',
+        title=f"Predicted AQI Trend - {forecast_city}",
+        markers=True
+    )
+
+    fig.update_traces(line_color='#FF4B4B')
+    st.plotly_chart(fig)
 # -----------------------------
 # Metrics
 # -----------------------------
