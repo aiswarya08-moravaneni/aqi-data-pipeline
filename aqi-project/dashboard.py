@@ -44,9 +44,20 @@ df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 def generate_7day_forecast(df):
     df = df.copy()
 
-    # Use your actual columns
+    # Map correct columns
     df['Date'] = pd.to_datetime(df['timestamp'])
     df['AQI'] = df['overall_aqi']
+
+    # 🚨 REMOVE NULL VALUES (IMPORTANT FIX)
+    df = df.dropna(subset=['Date', 'AQI'])
+
+    # 🚨 ALSO REMOVE INVALID VALUES
+    df = df[df['AQI'] > 0]
+
+    # If not enough data → stop
+    if len(df) < 5:
+        st.warning("Not enough data to generate forecast")
+        return pd.DataFrame()
 
     # Convert to ordinal
     df['Date_Ordinal'] = df['Date'].map(datetime.datetime.toordinal)
@@ -210,18 +221,21 @@ forecast_df_input = df[df["city"] == forecast_city]
 if st.button("Generate Forecast"):
     forecast_data = generate_7day_forecast(forecast_df_input)
 
-    st.dataframe(forecast_data, use_container_width=True)
+    if forecast_data.empty:
+        st.error("❌ Not enough clean data for prediction")
+    else:
+        st.dataframe(forecast_data, use_container_width=True)
 
-    fig = px.line(
-        forecast_data,
-        x='Date',
-        y='Predicted AQI',
-        title=f"Predicted AQI Trend - {forecast_city}",
-        markers=True
-    )
+        fig = px.line(
+            forecast_data,
+            x='Date',
+            y='Predicted AQI',
+            title=f"Predicted AQI Trend - {forecast_city}",
+            markers=True
+        )
 
-    fig.update_traces(line_color='#FF4B4B')
-    st.plotly_chart(fig)
+        fig.update_traces(line_color='#FF4B4B')
+        st.plotly_chart(fig)
 # -----------------------------
 # Metrics
 # -----------------------------
