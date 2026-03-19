@@ -43,40 +43,58 @@ df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 from sklearn.ensemble import RandomForestRegressor
 
+def create_sliding_window(data, window_size=5):
+    X = []
+    y = []
+
+    for i in range(len(data) - window_size):
+        X.append(data[i:i+window_size])
+        y.append(data[i+window_size])
+
+    return np.array(X), np.array(y)
+
+
 def generate_7day_forecast(df):
     df = df.copy()
 
-    df['Date'] = pd.to_datetime(df['timestamp'])
+    # Prepare data
     df['AQI'] = df['overall_aqi']
-
-    # ✅ Clean data
-    df = df.dropna(subset=['Date', 'AQI'])
+    df = df.dropna(subset=['AQI'])
     df = df[df['AQI'] > 0]
 
-    # ✅ Use only recent data (IMPORTANT)
-    df = df.sort_values("Date").tail(500)
+    # Sort + take recent data
+    df = df.sort_values("timestamp").tail(500)
 
-    # Convert to ordinal
-    df['Date_Ordinal'] = df['Date'].map(datetime.datetime.toordinal)
+    aqi_values = df['AQI'].values
 
-    X = df[['Date_Ordinal']].values
-    y = df['AQI'].values
+    window_size = 5
 
-    # ✅ Better model
+    # Create sliding window dataset
+    X, y = create_sliding_window(aqi_values, window_size)
+
+    # Train model
     model = RandomForestRegressor(n_estimators=100)
     model.fit(X, y)
 
+    # Start with last window
+    last_window = aqi_values[-window_size:]
+
+    predictions = []
+
+    for _ in range(7):
+        next_pred = model.predict([last_window])[0]
+        predictions.append(int(next_pred))
+
+        # Slide window forward
+        last_window = np.append(last_window[1:], next_pred)
+
     # Future dates
-    last_date = df['Date_Ordinal'].max()
-    future_dates = np.array([last_date + i for i in range(1, 8)]).reshape(-1, 1)
-
-    predictions = model.predict(future_dates)
-
-    forecast_dates = [datetime.date.fromordinal(int(d)) for d in future_dates.flatten()]
+    last_date = pd.to_datetime(df['timestamp']).max()
+    forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
 
     forecast_df = pd.DataFrame({
         'Date': forecast_dates,
-        'Predicted AQI': predictions.astype(int)
+        'Predicted AQI': predictions
     })
 
     return forecast_df
