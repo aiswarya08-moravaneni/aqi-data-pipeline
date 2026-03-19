@@ -222,6 +222,11 @@ season = df.groupby(["month","city"])["overall_aqi"].mean().reset_index()
 fig = px.line(season, x="month", y="overall_aqi", color="city")
 st.plotly_chart(fig, width="stretch", key="season_chart")
 
+
+forecast_city = st.selectbox("Select City for Forecast", sorted(df["city"].unique()))
+
+# 3. DEFINE the input variable HERE (Before the button)
+forecast_df_input = df[df["city"] == forecast_city]
 if st.button("Generate Forecast"):
     forecast_data, model_mae = generate_7day_forecast(forecast_df_input)
 
