@@ -1,5 +1,5 @@
 # 🌍 Advanced AQI Data Pipeline & Predictive Analytics
-> **Live Dashboard:** [Insert Your Streamlit Link Here]  
+> **Live Dashboard:** [https://aqi-data-pipeline-bvgjncknlbz6medlpegyo2.streamlit.app/]  
 > **Target Impact:** Real-time environmental monitoring and 7-day atmospheric forecasting.
 
 ## 📌 Project Overview
