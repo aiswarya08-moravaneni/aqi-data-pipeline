@@ -67,81 +67,68 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
 # 1. Update the Sliding Window to accept extra features
-def create_sliding_window(data, window_size=5, other_features=None):
+def create_sliding_window_multivariate(data_array, window_size=5):
     X = []
     y = []
-    for i in range(len(data) - window_size):
-        # Current AQI window
-        window = data[i:i+window_size]
-        # Append other features (like Day of Week) for the target day
-        if other_features is not None:
-            features = np.append(window, other_features[i+window_size])
-            X.append(features)
-        else:
-            X.append(window)
-        y.append(data[i+window_size])
+    # data_array will be a 2D array: [AQI, Temp, Humidity]
+    for i in range(len(data_array) - window_size):
+        # Flatten the last 5 days of ALL 3 variables into one long row
+        window = data_array[i:i+window_size].flatten() 
+        X.append(window)
+        y.append(data_array[i+window_size, 0]) # We are still only predicting AQI (index 0)
     return np.array(X), np.array(y)
 
 # 2. Update the Forecast function to use Time Features
 def generate_7day_forecast(df_input):
-    df = df_input.copy()
-
-    # Column Mapping
-    if 'overall_aqi' in df.columns:
-        df = df.rename(columns={'overall_aqi': 'AQI'})
-    elif 'aqi' in df.columns:
-        df = df.rename(columns={'aqi': 'AQI'})
-    else:
+    df = df_input.copy().sort_values("timestamp")
+    
+    # Ensure all required columns exist
+    cols = ['overall_aqi', 'temperature', 'humidity']
+    if not all(col in df.columns for col in cols):
         return pd.DataFrame(), 0.0
 
-    df = df.dropna(subset=['AQI'])
-    df = df[df['AQI'] > 0].sort_values("timestamp")
-    
-    if len(df) < 15: # Need a bit more data for time features
-        return pd.DataFrame(), 0.0
+    # Clean data
+    df = df.dropna(subset=cols)
+    df = df[df['overall_aqi'] > 0]
 
-    # CREATE TIME FEATURES: This is what creates variation
-    df['day_of_week'] = df['timestamp'].dt.dayofweek
-    
-    aqi_values = df['AQI'].values.astype(float)
-    day_features = df['day_of_week'].values
+    if len(df) < 20: return pd.DataFrame(), 0.0
+
+    # Prepare the 2D array for the sliding window
+    # Column 0: AQI, Column 1: Temp, Column 2: Humidity
+    data_values = df[cols].values.astype(float)
     window_size = 5
 
-    # Create window with time features
-    X, y = create_sliding_window(aqi_values, window_size, other_features=day_features)
+    X, y = create_sliding_window_multivariate(data_values, window_size)
 
-    # Split and Train
+    # Train/Test Split & MAE
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     mae = mean_absolute_error(y_test, model.predict(X_test))
 
-    # Re-train on full data
+    # Recursive Forecast
     model.fit(X, y)
-    
-    # RECURSIVE PREDICTION
-    current_aqi_window = aqi_values[-window_size:]
-    last_date = pd.to_datetime(df['timestamp'].iloc[-1])
+    current_window_data = data_values[-window_size:] # Get last 5 days of all 3 variables
     
     predictions = []
-    for i in range(1, 8):
-        future_date = last_date + pd.Timedelta(days=i)
-        # Combine the moving AQI window with the future Day of the Week
-        input_features = np.append(current_aqi_window, [future_date.dayofweek]).reshape(1, -1)
-        
-        pred = model.predict(input_features)[0]
-        
-        # ADD A TINY BIT OF "REALISTIC NOISE" (Optional but makes graphs look better)
-        # pred += np.random.uniform(-1, 1) 
-        
-        predictions.append(int(pred))
-        
-        # SLIDE: Update the window with the new prediction
-        current_aqi_window = np.append(current_aqi_window[1:], pred)
+    # We'll use the average Temp/Humidity of the last week to fill the "future" weather
+    avg_temp = df['temperature'].tail(7).mean()
+    avg_hum = df['humidity'].tail(7).mean()
 
-    forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
+    for _ in range(7):
+        # Predict next AQI
+        input_row = current_window_data.flatten().reshape(1, -1)
+        pred_aqi = model.predict(input_row)[0]
+        predictions.append(int(pred_aqi))
+        
+        # SLIDE: Create the next step's row [Predicted AQI, Future Temp, Future Hum]
+        next_step_data = np.array([[pred_aqi, avg_temp, avg_hum]])
+        current_window_data = np.vstack([current_window_data[1:], next_step_data])
+
+    # Format Output
+    last_date = pd.to_datetime(df['timestamp'].iloc[-1])
     forecast_df = pd.DataFrame({
-        'Date': forecast_dates,
+        'Date': [last_date + pd.Timedelta(days=i) for i in range(1, 8)],
         'Predicted AQI': predictions
     })
     forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
