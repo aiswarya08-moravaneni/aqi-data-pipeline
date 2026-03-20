@@ -75,24 +75,46 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
 def generate_7day_forecast(df):
-    # ... [Your existing data prep: overall_aqi, dropna, tail(500)] ...
-    aqi_values = df['AQI'].values
+    # 1. Create a local copy to avoid modifying the original dataframe
+    df_local = df.copy()
+
+    # 2. Robust Column Mapping: Look for any version of AQI
+    if 'overall_aqi' in df_local.columns:
+        df_local['AQI'] = df_local['overall_aqi']
+    elif 'aqi' in df_local.columns:
+        df_local['AQI'] = df_local['aqi']
+    else:
+        # If no AQI column is found, return empty results instead of crashing
+        return pd.DataFrame(), 0.0
+
+    # 3. Data Cleaning
+    df_local = df_local.dropna(subset=['AQI'])
+    df_local = df_local[df_local['AQI'] > 0]
+
+    # 4. Check if we have enough data to actually train a model
+    # (RandomForest needs more than just a few rows)
     window_size = 5
+    if len(df_local) < (window_size + 5):
+        return pd.DataFrame(), 0.0
+
+    # 5. Take recent data and extract values
+    df_local = df_local.sort_values("timestamp").tail(500)
+    aqi_values = df_local['AQI'].values
+
+    # 6. Create sliding window
     X, y = create_sliding_window(aqi_values, window_size)
 
-    # Validation Step: Split data to calculate Error Metric
-    # We use shuffle=False because order matters in Time Series
+    # 7. Validation Split (For the MAE metric)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     
+    # 8. Train and Calculate Error
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-    
-    # Calculate Mean Absolute Error (MAE)
     test_preds = model.predict(X_test)
     mae = mean_absolute_error(y_test, test_preds)
 
-    # Forecast Logic (re-train on full data for best results)
-    model.fit(X, y)
+    # 9. Final Forecast
+    model.fit(X, y) # Re-train on all available data for the future
     last_window = aqi_values[-window_size:]
     predictions = []
 
@@ -101,15 +123,18 @@ def generate_7day_forecast(df):
         predictions.append(int(next_pred))
         last_window = np.append(last_window[1:], next_pred)
 
-    last_date = pd.to_datetime(df['timestamp']).max()
+    # 10. Prepare Output
+    last_date = pd.to_datetime(df_local['timestamp']).max()
+    forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
+
     forecast_df = pd.DataFrame({
-        'Date': [last_date + pd.Timedelta(days=i) for i in range(1, 8)],
+        'Date': forecast_dates,
         'Predicted AQI': predictions
     })
     
-    # Apply YOUR classification function
+    # Apply your classification function for the 'Status' column
     forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
-    
+
     return forecast_df, mae
 # -----------------------------
 # AQI Classification
