@@ -74,54 +74,72 @@ def generate_7day_forecast(df):
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
-def generate_7day_forecast(df):
-    # 1. Create a local copy to avoid modifying the original dataframe
-    df_local = df.copy()
+def generate_7day_forecast(df_input):
+    # 1. Create a clean copy to avoid 'SettingWithCopy' warnings
+    df = df_input.copy()
 
-    # 2. Robust Column Mapping: Look for any version of AQI
-    if 'overall_aqi' in df_local.columns:
-        df_local['AQI'] = df_local['overall_aqi']
-    elif 'aqi' in df_local.columns:
-        df_local['AQI'] = df_local['aqi']
+    # 2. DEBUG: See what columns are actually arriving (Check your Streamlit Logs)
+    # print(f"DEBUG: Columns received: {df.columns.tolist()}")
+
+    # 3. Rename whatever AQI column you have to 'AQI'
+    if 'overall_aqi' in df.columns:
+        df = df.rename(columns={'overall_aqi': 'AQI'})
+    elif 'aqi' in df.columns:
+        df = df.rename(columns={'aqi': 'AQI'})
     else:
-        # If no AQI column is found, return empty results instead of crashing
+        # If no AQI column exists, return empty to avoid the KeyError
         return pd.DataFrame(), 0.0
 
-    # 3. Data Cleaning
-    df_local = df_local.dropna(subset=['AQI'])
-    df_local = df_local[df_local['AQI'] > 0]
-
-    aqi_values = df['AQI'].values
-    window_size = 5 # Looking back 5 days to predict the 6th
+    # 4. Filter for valid data
+    df = df.dropna(subset=['AQI'])
+    df = df[df['AQI'] > 0]
     
-    # Create the training features (X) and target (y)
+    # 5. Ensure we have enough data for the sliding window (5 days + 1 target)
+    if len(df) < 10:
+        return pd.DataFrame(), 0.0
+
+    # 6. Sort by time to ensure the 'Window' makes sense
+    # Ensure 'timestamp' exists; if not, use index
+    if 'timestamp' in df.columns:
+        df = df.sort_values("timestamp")
+    
+    aqi_values = df['AQI'].values.astype(float)
+    window_size = 5
+
+    # 7. Create sliding window features
     X, y = create_sliding_window(aqi_values, window_size)
-    
-    # Train the model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X, y)
 
-    # --- START OF SLIDING FORECAST ---
-    # Get the very last 5 actual days from your data to start the forecast
+    # 8. Train/Test Split for MAE
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    
+    mae = mean_absolute_error(y_test, model.predict(X_test))
+
+    # 9. Recursive Forecasting (Sliding the window 7 times)
+    model.fit(X, y) # Re-train on full city data
     current_window = aqi_values[-window_size:].reshape(1, -1)
     
     predictions = []
     for _ in range(7):
-        # 1. Predict the next value
-        next_val = model.predict(current_window)[0]
-        predictions.append(int(next_val))
+        # Predict the next day
+        pred = model.predict(current_window)[0]
+        predictions.append(int(pred))
         
-        # 2. Slide the window: 
-        # Remove the first element and append the new prediction
-        # new_window = [old_2, old_3, old_4, old_5, prediction]
-        current_window = np.append(current_window[:, 1:], [[next_val]], axis=1)
+        # SLIDE: Remove the oldest value, add the new prediction to the end
+        # This ensures the AQI values VARY based on the previous day's result
+        current_window = np.append(current_window[:, 1:], [[pred]], axis=1)
+
+    # 10. Create Date Range for output
+    last_date = pd.to_datetime(df['timestamp'].iloc[-1]) if 'timestamp' in df.columns else datetime.datetime.now()
+    forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
 
     forecast_df = pd.DataFrame({
         'Date': forecast_dates,
         'Predicted AQI': predictions
     })
     
-    # Apply your classification function for the 'Status' column
+    # Add your classification labels
     forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
 
     return forecast_df, mae
