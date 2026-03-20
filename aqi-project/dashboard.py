@@ -91,7 +91,7 @@ def generate_7day_forecast(df):
     df_local = df_local.dropna(subset=['AQI'])
     df_local = df_local[df_local['AQI'] > 0]
 
-   aqi_values = df['AQI'].values
+    aqi_values = df['AQI'].values
     window_size = 5 # Looking back 5 days to predict the 6th
     
     # Create the training features (X) and target (y)
