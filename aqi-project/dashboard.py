@@ -91,41 +91,30 @@ def generate_7day_forecast(df):
     df_local = df_local.dropna(subset=['AQI'])
     df_local = df_local[df_local['AQI'] > 0]
 
-    # 4. Check if we have enough data to actually train a model
-    # (RandomForest needs more than just a few rows)
-    window_size = 5
-    if len(df_local) < (window_size + 5):
-        return pd.DataFrame(), 0.0
-
-    # 5. Take recent data and extract values
-    df_local = df_local.sort_values("timestamp").tail(500)
-    aqi_values = df_local['AQI'].values
-
-    # 6. Create sliding window
-    X, y = create_sliding_window(aqi_values, window_size)
-
-    # 7. Validation Split (For the MAE metric)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+   aqi_values = df['AQI'].values
+    window_size = 5 # Looking back 5 days to predict the 6th
     
-    # 8. Train and Calculate Error
+    # Create the training features (X) and target (y)
+    X, y = create_sliding_window(aqi_values, window_size)
+    
+    # Train the model
     model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-    test_preds = model.predict(X_test)
-    mae = mean_absolute_error(y_test, test_preds)
+    model.fit(X, y)
 
-    # 9. Final Forecast
-    model.fit(X, y) # Re-train on all available data for the future
-    last_window = aqi_values[-window_size:]
+    # --- START OF SLIDING FORECAST ---
+    # Get the very last 5 actual days from your data to start the forecast
+    current_window = aqi_values[-window_size:].reshape(1, -1)
+    
     predictions = []
-
     for _ in range(7):
-        next_pred = model.predict([last_window])[0]
-        predictions.append(int(next_pred))
-        last_window = np.append(last_window[1:], next_pred)
-
-    # 10. Prepare Output
-    last_date = pd.to_datetime(df_local['timestamp']).max()
-    forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
+        # 1. Predict the next value
+        next_val = model.predict(current_window)[0]
+        predictions.append(int(next_val))
+        
+        # 2. Slide the window: 
+        # Remove the first element and append the new prediction
+        # new_window = [old_2, old_3, old_4, old_5, prediction]
+        current_window = np.append(current_window[:, 1:], [[next_val]], axis=1)
 
     forecast_df = pd.DataFrame({
         'Date': forecast_dates,
