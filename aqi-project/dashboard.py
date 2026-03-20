@@ -43,15 +43,7 @@ df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 from sklearn.ensemble import RandomForestRegressor
 
-def create_sliding_window(data, window_size=5):
-    X = []
-    y = []
 
-    for i in range(len(data) - window_size):
-        X.append(data[i:i+window_size])
-        y.append(data[i+window_size])
-
-    return np.array(X), np.array(y)
 
 def generate_7day_forecast(df):
     df = df.copy()
@@ -74,72 +66,84 @@ def generate_7day_forecast(df):
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
+# 1. Update the Sliding Window to accept extra features
+def create_sliding_window(data, window_size=5, other_features=None):
+    X = []
+    y = []
+    for i in range(len(data) - window_size):
+        # Current AQI window
+        window = data[i:i+window_size]
+        # Append other features (like Day of Week) for the target day
+        if other_features is not None:
+            features = np.append(window, other_features[i+window_size])
+            X.append(features)
+        else:
+            X.append(window)
+        y.append(data[i+window_size])
+    return np.array(X), np.array(y)
+
+# 2. Update the Forecast function to use Time Features
 def generate_7day_forecast(df_input):
-    # 1. Create a clean copy to avoid 'SettingWithCopy' warnings
     df = df_input.copy()
 
-    # 2. DEBUG: See what columns are actually arriving (Check your Streamlit Logs)
-    # print(f"DEBUG: Columns received: {df.columns.tolist()}")
-
-    # 3. Rename whatever AQI column you have to 'AQI'
+    # Column Mapping
     if 'overall_aqi' in df.columns:
         df = df.rename(columns={'overall_aqi': 'AQI'})
     elif 'aqi' in df.columns:
         df = df.rename(columns={'aqi': 'AQI'})
     else:
-        # If no AQI column exists, return empty to avoid the KeyError
         return pd.DataFrame(), 0.0
 
-    # 4. Filter for valid data
     df = df.dropna(subset=['AQI'])
-    df = df[df['AQI'] > 0]
+    df = df[df['AQI'] > 0].sort_values("timestamp")
     
-    # 5. Ensure we have enough data for the sliding window (5 days + 1 target)
-    if len(df) < 10:
+    if len(df) < 15: # Need a bit more data for time features
         return pd.DataFrame(), 0.0
 
-    # 6. Sort by time to ensure the 'Window' makes sense
-    # Ensure 'timestamp' exists; if not, use index
-    if 'timestamp' in df.columns:
-        df = df.sort_values("timestamp")
+    # CREATE TIME FEATURES: This is what creates variation
+    df['day_of_week'] = df['timestamp'].dt.dayofweek
     
     aqi_values = df['AQI'].values.astype(float)
+    day_features = df['day_of_week'].values
     window_size = 5
 
-    # 7. Create sliding window features
-    X, y = create_sliding_window(aqi_values, window_size)
+    # Create window with time features
+    X, y = create_sliding_window(aqi_values, window_size, other_features=day_features)
 
-    # 8. Train/Test Split for MAE
+    # Split and Train
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
-    
     mae = mean_absolute_error(y_test, model.predict(X_test))
 
-    # 9. Recursive Forecasting (Sliding the window 7 times)
-    model.fit(X, y) # Re-train on full city data
-    current_window = aqi_values[-window_size:].reshape(1, -1)
+    # Re-train on full data
+    model.fit(X, y)
+    
+    # RECURSIVE PREDICTION
+    current_aqi_window = aqi_values[-window_size:]
+    last_date = pd.to_datetime(df['timestamp'].iloc[-1])
     
     predictions = []
-    for _ in range(7):
-        # Predict the next day
-        pred = model.predict(current_window)[0]
+    for i in range(1, 8):
+        future_date = last_date + pd.Timedelta(days=i)
+        # Combine the moving AQI window with the future Day of the Week
+        input_features = np.append(current_aqi_window, [future_date.dayofweek]).reshape(1, -1)
+        
+        pred = model.predict(input_features)[0]
+        
+        # ADD A TINY BIT OF "REALISTIC NOISE" (Optional but makes graphs look better)
+        # pred += np.random.uniform(-1, 1) 
+        
         predictions.append(int(pred))
         
-        # SLIDE: Remove the oldest value, add the new prediction to the end
-        # This ensures the AQI values VARY based on the previous day's result
-        current_window = np.append(current_window[:, 1:], [[pred]], axis=1)
+        # SLIDE: Update the window with the new prediction
+        current_aqi_window = np.append(current_aqi_window[1:], pred)
 
-    # 10. Create Date Range for output
-    last_date = pd.to_datetime(df['timestamp'].iloc[-1]) if 'timestamp' in df.columns else datetime.datetime.now()
     forecast_dates = [last_date + pd.Timedelta(days=i) for i in range(1, 8)]
-
     forecast_df = pd.DataFrame({
         'Date': forecast_dates,
         'Predicted AQI': predictions
     })
-    
-    # Add your classification labels
     forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
 
     return forecast_df, mae
