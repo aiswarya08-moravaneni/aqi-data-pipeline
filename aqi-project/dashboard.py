@@ -255,6 +255,7 @@ view_option = st.radio(
     "Data Range",
     ["All Historical Data", "Today Only"],
     horizontal=True
+    key="correlation_radio"
 )
 
 plot_df = df[df['timestamp'].dt.date == datetime.date.today()] if view_option == "Today Only" else df
