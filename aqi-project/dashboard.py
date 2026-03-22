@@ -43,6 +43,15 @@ df = pd.read_sql(query, conn)
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
 # remove unwanted columns
+# Convert columns to numeric (fix weird scaling issue)
+df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
+df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
+df["overall_aqi"] = pd.to_numeric(df["overall_aqi"], errors="coerce")
+df = df[
+    df["temperature"].between(0, 60) &
+    df["humidity"].between(0, 100) &
+    df["overall_aqi"].between(0, 500)
+]
 df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 
@@ -249,59 +258,49 @@ view_option = st.radio(
 
 plot_df = df[df['timestamp'].dt.date == datetime.date.today()] if view_option == "Today Only" else df
 
-# Optional: remove extreme outliers for cleaner plot
+# Remove extreme outliers
 plot_df = plot_df[plot_df["overall_aqi"] < 300]
 
-col_p1, col_p2 = st.columns(2)
-
 # 🌡 Temperature vs AQI
-with col_p1:
-    fig_temp = px.scatter(
-        plot_df,
-        x="temperature",
-        y="overall_aqi",
-        color="city",
-        opacity=0.6,
-        trendline="ols",
-        trendline_scope="trace",  # 🔥 separate trendline per city
-        title="Impact of Temperature on AQI",
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
+fig_temp = px.scatter(
+    plot_df,
+    x="temperature",
+    y="overall_aqi",
+    color="city",
+    opacity=0.6,
+    trendline="ols",
+    trendline_scope="trace",
+    title="Impact of Temperature on AQI"
+)
 
-    fig_temp.update_traces(marker=dict(size=6))
+fig_temp.update_traces(marker=dict(size=6))
+fig_temp.update_layout(
+    xaxis_title="Temperature (°C)",
+    yaxis_title="AQI"
+)
 
-    fig_temp.update_layout(
-        xaxis_title="Temperature (°C)",
-        yaxis_title="Overall AQI",
-        legend_title="City"
-    )
-
-    st.plotly_chart(fig_temp, use_container_width=True)
+st.plotly_chart(fig_temp, use_container_width=True)
 
 
 # 💧 Humidity vs AQI
-with col_p2:
-    fig_hum = px.scatter(
-        plot_df,
-        x="humidity",
-        y="overall_aqi",
-        color="city",
-        opacity=0.6,
-        trendline="ols",
-        trendline_scope="trace",  # 🔥 separate trendline per city
-        title="Impact of Atmospheric Humidity on Pollutant Concentration",
-        color_discrete_sequence=px.colors.qualitative.Set2
-    )
+fig_hum = px.scatter(
+    plot_df,
+    x="humidity",
+    y="overall_aqi",
+    color="city",
+    opacity=0.6,
+    trendline="ols",
+    trendline_scope="trace",
+    title="Impact of Atmospheric Humidity on AQI"
+)
 
-    fig_hum.update_traces(marker=dict(size=6))
+fig_hum.update_traces(marker=dict(size=6))
+fig_hum.update_layout(
+    xaxis_title="Humidity (%)",
+    yaxis_title="AQI"
+)
 
-    fig_hum.update_layout(
-        xaxis_title="Humidity (%)",
-        yaxis_title="Overall AQI",
-        legend_title="City"
-    )
-
-    st.plotly_chart(fig_hum, use_container_width=True)
+st.plotly_chart(fig_hum, use_container_width=True)
 # -----------------------------
 # Seasonal Analysis
 # -----------------------------
