@@ -37,18 +37,28 @@ ORDER BY timestamp
 df = pd.read_sql(query, conn)
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-# --- DATA CLEANING LOGIC ---
 total_rows_before = len(df)
 
-# Define "Physical Limits" for Air Quality Sensors
-# (Temps above 60C or Humidity above 100% are usually sensor glitches)
-df = df[(df['temperature'] >= -10) & (df['temperature'] <= 60)]
-df = df[(df['humidity'] >= 0) & (df['humidity'] <= 100)]
-df = df[(df['overall_aqi'] >= 0) & (df['overall_aqi'] <= 500)]
+# Count nulls (for report)
+null_count = df[['temperature','humidity','overall_aqi']].isnull().sum().sum()
+
+# Fill missing values (BEST for time-series)
+df['temperature'] = df['temperature'].fillna(df['temperature'].mean())
+df['humidity'] = df['humidity'].fillna(df['humidity'].mean())
+df['overall_aqi'] = df['overall_aqi'].fillna(method='ffill')
+
+# Apply valid range filters
+df = df[
+    (df['temperature'].between(-10, 60)) &
+    (df['humidity'].between(0, 100)) &
+    (df['overall_aqi'].between(0, 500))
+]
 
 total_rows_after = len(df)
 rows_removed = total_rows_before - total_rows_after
-# ---------------------------
+
+health_pct = (total_rows_after / total_rows_before) * 100 if total_rows_before else 0
+
 # remove unwanted columns
 df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
@@ -178,8 +188,17 @@ if not latest[latest["overall_aqi"] > 200].empty:
 # Trend
 # -----------------------------
 st.subheader("AQI Trend")
-trend = df.groupby("timestamp")["overall_aqi"].mean()
-st.line_chart(trend)
+
+fig = px.line(
+    df.sort_values("timestamp"),
+    x="timestamp",
+    y="overall_aqi",
+    color="city"
+)
+
+fig.update_xaxes(range=[df["timestamp"].min(), df["timestamp"].max()])
+
+st.plotly_chart(fig, width="stretch")
 
 # -----------------------------
 # City Comparison
@@ -196,10 +215,14 @@ st.subheader("📈 Historical AQI Trend")
 
 city = st.selectbox("Select City", sorted(df["city"].unique()))
 
-city_data = df[df["city"] == city]
+city_data = df[df["city"] == city].copy()
 
-fig = px.line(city_data, x="timestamp", y="overall_aqi")
-st.plotly_chart(fig, width="stretch", key="history_chart")
+# RESAMPLE (fixes compressed graph)
+city_data = city_data.set_index("timestamp").resample("D").mean().reset_index()
+
+fig = px.line(city_data, x="timestamp", y="overall_aqi", markers=True)
+
+st.plotly_chart(fig, width="stretch")
 
 # -----------------------------
 # Pollutant Analysis
@@ -216,15 +239,19 @@ st.plotly_chart(fig, width="stretch", key="pollutant_chart")
 # -----------------------------
 st.subheader("📈 Year-wise Trend Analysis")
 
+st.subheader("📈 Monthly Trend Analysis")
+
 city2 = st.selectbox("Select City for Analysis", sorted(df["city"].unique()), key="year_city")
 
 filtered = df[df["city"] == city2].copy()
-filtered["year"] = filtered["timestamp"].dt.year
 
-yearly = filtered.groupby("year")[["overall_aqi","temperature","humidity"]].mean().reset_index()
+filtered["month"] = filtered["timestamp"].dt.to_period("M")
 
-fig = px.line(yearly, x="year", y=["overall_aqi","temperature","humidity"], markers=True)
-st.plotly_chart(fig, width="stretch", key="yearly_chart")
+monthly = filtered.groupby("month")["overall_aqi"].mean().reset_index()
+
+fig = px.line(monthly, x="month", y="overall_aqi", markers=True)
+
+st.plotly_chart(fig, width="stretch")
 # -----------------------------
 # Date Filter Toggle
 # -----------------------------
@@ -263,12 +290,16 @@ st.plotly_chart(fig, width="stretch", key="humidity_chart_updated")
 # -----------------------------
 st.subheader("📅 Seasonal AQI Analysis")
 
-df["month"] = df["timestamp"].dt.month
-season = df.groupby(["month","city"])["overall_aqi"].mean().reset_index()
+if df["timestamp"].dt.month.nunique() < 3:
+    st.warning("Not enough data for seasonal analysis")
+else:
+    df["month"] = df["timestamp"].dt.month
 
-fig = px.line(season, x="month", y="overall_aqi", color="city")
-st.plotly_chart(fig, width="stretch", key="season_chart")
+    season = df.groupby(["month","city"])["overall_aqi"].mean().reset_index()
 
+    fig = px.line(season, x="month", y="overall_aqi", color="city")
+
+    st.plotly_chart(fig, width="stretch")
 
 forecast_city = st.selectbox("Select City for Forecast", sorted(df["city"].unique()))
 
@@ -310,13 +341,15 @@ c3.metric("Min AQI", df["overall_aqi"].min())
 
 with st.expander("🛠️ Data Pipeline Health Report"):
     col_h1, col_h2, col_h3 = st.columns(3)
+
     col_h1.metric("Total Records", total_rows_after)
-    col_h2.metric("Outliers Removed", rows_removed, delta_color="inverse")
-    
-    health_pct = (total_rows_after / total_rows_before) * 100 if total_rows_before > 0 else 0
-    col_h3.metric("Data Integrity", f"{health_pct:.1f}%")
+    col_h2.metric("Rows Removed", rows_removed)
+    col_h3.metric("Data Quality", f"{health_pct:.1f}%")
+
+    st.markdown("### 🔍 Data Insights")
+    st.write(f"❌ Missing Values Handled: {null_count}")
 
     if rows_removed > 0:
-        st.warning(f"Note: {rows_removed} anomalous sensor readings were filtered to maintain statistical accuracy.")
+        st.warning(f"{rows_removed} rows removed due to extreme invalid values.")
 st.markdown("---")
 st.caption("Live + Historical AQI Dashboard")
