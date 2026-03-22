@@ -48,13 +48,8 @@ df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
 df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
 df["overall_aqi"] = pd.to_numeric(df["overall_aqi"], errors="coerce")
 
-# Keep only valid AQI
+# Keep ALL valid AQI (this preserves historical data)
 df = df[df["overall_aqi"].between(0, 500)]
-
-# Fill missing values instead of deleting rows
-df["temperature"] = df.groupby("city")["temperature"].transform(lambda x: x.fillna(x.median()))
-df["humidity"] = df.groupby("city")["humidity"].transform(lambda x: x.fillna(x.median()))
-df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 
 from sklearn.ensemble import RandomForestRegressor
