@@ -219,16 +219,38 @@ fig = px.line(yearly, x="year", y=["overall_aqi","temperature","humidity"], mark
 st.plotly_chart(fig, width="stretch", key="yearly_chart")
 
 st.subheader("📊 Atmospheric Correlation Analysis")
+
 view_option = st.radio("Data Range", ["All Historical Data", "Today Only"], horizontal=True)
-plot_df = df[df['timestamp'].dt.date == datetime.date.today()] if view_option == "Today Only" else df
+
+selected_city_corr = st.selectbox("Select City for Correlation", df["city"].unique(), key="corr")
+
+plot_df = df[df["city"] == selected_city_corr]
+
+if view_option == "Today Only":
+    plot_df = plot_df[plot_df['timestamp'].dt.date == datetime.date.today()]
 
 col_p1, col_p2 = st.columns(2)
+
 with col_p1:
-    fig_temp = px.scatter(plot_df, x="temperature", y="overall_aqi", color="city", opacity=0.5, trendline="ols", title="Temp vs AQI")
+    fig_temp = px.scatter(
+        plot_df,
+        x="temperature",
+        y="overall_aqi",
+        opacity=0.6,
+        trendline="ols",
+        title=f"{selected_city_corr}: Temperature vs AQI"
+    )
     st.plotly_chart(fig_temp, use_container_width=True)
 
 with col_p2:
-    fig_hum = px.scatter(plot_df, x="humidity", y="overall_aqi", color="city", opacity=0.5, trendline="ols", title="Humidity vs AQI")
+    fig_hum = px.scatter(
+        plot_df,
+        x="humidity",
+        y="overall_aqi",
+        opacity=0.6,
+        trendline="ols",
+        title=f"{selected_city_corr}: Humidity vs AQI"
+    )
     st.plotly_chart(fig_hum, use_container_width=True)
 
 # -----------------------------
