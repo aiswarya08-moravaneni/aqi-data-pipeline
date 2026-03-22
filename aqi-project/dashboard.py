@@ -21,7 +21,7 @@ socket.setdefaulttimeout(30)
 def get_connection():
     return psycopg2.connect(
         "postgresql://postgres.oxcycpqjisgegrhewdov:AiS%23u2%29jkfty@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require"
-    )
+)
 
 conn = get_connection()
 
