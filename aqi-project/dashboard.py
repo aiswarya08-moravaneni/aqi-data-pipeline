@@ -55,16 +55,26 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
 # 1. Update the Sliding Window to accept extra features
+
 def create_sliding_window_multivariate(data_array, window_size=5):
-    X = []
-    y = []
-    # data_array will be a 2D array: [AQI, Temp, Humidity]
-    for i in range(len(data_array) - window_size):
-        # Flatten the last 5 days of ALL 3 variables into one long row
-        window = data_array[i:i+window_size].flatten() 
-        X.append(window)
-        y.append(data_array[i+window_size, 0]) # We are still only predicting AQI (index 0)
-    return np.array(X), np.array(y)
+
+    X = []
+
+    y = []
+
+    # data_array will be a 2D array: [AQI, Temp, Humidity]
+
+    for i in range(len(data_array) - window_size):
+
+        # Flatten the last 5 days of ALL 3 variables into one long row
+
+        window = data_array[i:i+window_size].flatten() 
+
+        X.append(window)
+
+        y.append(data_array[i+window_size, 0]) # We are still only predicting AQI (index 0)
+
+    return np.array(X), np.array(y)
 
 # 2. Update the Forecast function to use Time Features
 def generate_7day_forecast(df_input):
