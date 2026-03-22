@@ -247,30 +247,31 @@ plot_df = df[df["city"] == selected_city_corr]
 if view_option == "Today Only":
     plot_df = plot_df[plot_df['timestamp'].dt.date == datetime.date.today()]
 
-col_p1, col_p2 = st.columns(2)
 
-with col_p1:
-    fig_temp = px.scatter(
-        plot_df,
-        x="temperature",
-        y="overall_aqi",
-        opacity=0.6,
-        trendline="ols",
-        title=f"{selected_city_corr}: Temperature vs AQI"
-    )
-    st.plotly_chart(fig_temp, use_container_width=True)
 
-with col_p2:
-    fig_hum = px.scatter(
-        plot_df,
-        x="humidity",
-        y="overall_aqi",
-        opacity=0.6,
-        trendline="ols",
-        title=f"{selected_city_corr}: Humidity vs AQI"
-    )
-    st.plotly_chart(fig_hum, use_container_width=True)
+st.subheader("🌍 Impact of Atmospheric Humidity on Pollutant Concentration")
 
+# Use full dataset (not filtered by city)
+fig = px.scatter(
+    df,
+    x="humidity",
+    y="overall_aqi",
+    color="city",  # multiple cities
+    opacity=0.6,
+    trendline="ols",
+    title="Impact of Atmospheric Humidity on Pollutant Concentration"
+)
+
+# Improve appearance
+fig.update_traces(marker=dict(size=6))
+
+fig.update_layout(
+    xaxis_title="Humidity (%)",
+    yaxis_title="Overall AQI",
+    legend_title="City"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 # -----------------------------
 # Seasonal Analysis
 # -----------------------------
