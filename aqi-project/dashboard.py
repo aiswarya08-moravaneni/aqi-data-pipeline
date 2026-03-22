@@ -225,7 +225,7 @@ st.subheader("💨 Pollutant Distribution")
 pollutant = st.selectbox("Select Pollutant", ["pm25", "pm10", "no2"])
 
 fig = px.box(df, x="city", y=pollutant, color="city")
-st.plotly_chart(fig, width="stretch", key="pollutant_chart")
+st.plotly_chart(fig, width="stretch", key="pollutant_chart,")
 
 # -----------------------------
 # Year-wise Trend
@@ -326,7 +326,7 @@ fig_hum.update_layout(
     yaxis_title="AQI"
 )
 
-st.plotly_chart(fig_hum, use_container_width=True)
+st.plotly_chart(fig_hum, use_container_width=True, key="hum_chart")
 # -----------------------------
 # Seasonal Analysis
 # -----------------------------
