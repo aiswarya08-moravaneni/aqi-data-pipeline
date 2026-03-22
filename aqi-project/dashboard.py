@@ -254,7 +254,7 @@ st.subheader("📊 Atmospheric Correlation Analysis")
 view_option = st.radio(
     "Data Range",
     ["All Historical Data", "Today Only"],
-    horizontal=True
+    horizontal=True,
     key="correlation_radio"
 )
 
