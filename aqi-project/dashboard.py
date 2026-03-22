@@ -305,5 +305,3 @@ c3.metric("Min AQI", df["overall_aqi"].min())
 
 st.markdown("---")
 st.caption("Live + Historical AQI Dashboard")
-
-chech this code, this code is plot is making the scatterplot between the overall aqi and temperature and i fell something worong in it, check it out and also check whether if any thing i need to change or remove
