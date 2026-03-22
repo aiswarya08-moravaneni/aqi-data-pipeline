@@ -77,13 +77,20 @@ def create_sliding_window_multivariate(data_array, window_size=5):
     return np.array(X), np.array(y)
 
 # 2. Update the Forecast function to use Time Features
+
 def generate_7day_forecast(df_input):
-    df = df_input.copy().sort_values("timestamp")
-    
-    # Ensure all required columns exist
-    cols = ['overall_aqi', 'temperature', 'humidity']
-    if not all(col in df.columns for col in cols):
-        return pd.DataFrame(), 0.0
+
+    df = df_input.copy().sort_values("timestamp")
+
+    
+
+    # Ensure all required columns exist
+
+    cols = ['overall_aqi', 'temperature', 'humidity']
+
+    if not all(col in df.columns for col in cols):
+
+        return pd.DataFrame(), 0.0
 
     # Clean data
     df = df.dropna(subset=cols)
