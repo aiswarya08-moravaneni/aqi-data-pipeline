@@ -253,10 +253,11 @@ view_option = st.radio(
     key="correlation_radio"
 )
 
-# ✅ FILTER ONLY HERE (important)
 scatter_df = df[
-    df["temperature"].notna() &
-    df["humidity"].notna()
+    (df["temperature"].notna()) &
+    (df["humidity"].notna()) &
+    (df["humidity"] <= 100) &
+    (df["temperature"] <= 60)
 ]
 
 if view_option == "Today Only":
@@ -264,66 +265,31 @@ if view_option == "Today Only":
         scatter_df['timestamp'].dt.date == datetime.date.today()
     ]
 
-# Optional: remove extreme outliers
-scatter_df = scatter_df[scatter_df["overall_aqi"] < 300]
-
-# 🌡 Temperature vs AQI
+# 🌡 Temperature
 fig_temp = px.scatter(
     scatter_df,
     x="temperature",
     y="overall_aqi",
     color="city",
-    opacity=0.6,
     trendline="ols",
     trendline_scope="trace",
+    opacity=0.6,
     title="Impact of Temperature on AQI"
 )
 
-fig_temp.update_traces(marker=dict(size=6))
-fig_temp.update_layout(
-    xaxis_title="Temperature (°C)",
-    yaxis_title="AQI"
-)
-
-st.plotly_chart(fig_temp, use_container_width=True)
+st.plotly_chart(fig_temp, use_container_width=True, key="temp_chart")
 
 
-# 💧 Humidity vs AQI
+# 💧 Humidity
 fig_hum = px.scatter(
     scatter_df,
     x="humidity",
     y="overall_aqi",
     color="city",
-    opacity=0.6,
     trendline="ols",
     trendline_scope="trace",
-    title="Impact of Atmospheric Humidity on AQI"
-)
-
-fig_hum.update_traces(marker=dict(size=6))
-fig_hum.update_layout(
-    xaxis_title="Humidity (%)",
-    yaxis_title="AQI"
-)
-
-st.plotly_chart(fig_hum, use_container_width=True)
-
-# 💧 Humidity vs AQI
-fig_hum = px.scatter(
-    scatter_df,
-    x="humidity",
-    y="overall_aqi",
-    color="city",
     opacity=0.6,
-    trendline="ols",
-    trendline_scope="trace",
     title="Impact of Atmospheric Humidity on AQI"
-)
-
-fig_hum.update_traces(marker=dict(size=6))
-fig_hum.update_layout(
-    xaxis_title="Humidity (%)",
-    yaxis_title="AQI"
 )
 
 st.plotly_chart(fig_hum, use_container_width=True, key="hum_chart")
