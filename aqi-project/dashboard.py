@@ -37,6 +37,18 @@ ORDER BY timestamp
 df = pd.read_sql(query, conn)
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
+# --- DATA CLEANING LOGIC ---
+total_rows_before = len(df)
+
+# Define "Physical Limits" for Air Quality Sensors
+# (Temps above 60C or Humidity above 100% are usually sensor glitches)
+df = df[(df['temperature'] >= -10) & (df['temperature'] <= 60)]
+df = df[(df['humidity'] >= 0) & (df['humidity'] <= 100)]
+df = df[(df['overall_aqi'] >= 0) & (df['overall_aqi'] <= 500)]
+
+total_rows_after = len(df)
+rows_removed = total_rows_before - total_rows_after
+# ---------------------------
 # remove unwanted columns
 df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
@@ -296,5 +308,15 @@ c1.metric("Average AQI", round(df["overall_aqi"].mean(),2))
 c2.metric("Max AQI", df["overall_aqi"].max())
 c3.metric("Min AQI", df["overall_aqi"].min())
 
+with st.expander("🛠️ Data Pipeline Health Report"):
+    col_h1, col_h2, col_h3 = st.columns(3)
+    col_h1.metric("Total Records", total_rows_after)
+    col_h2.metric("Outliers Removed", rows_removed, delta_color="inverse")
+    
+    health_pct = (total_rows_after / total_rows_before) * 100 if total_rows_before > 0 else 0
+    col_h3.metric("Data Integrity", f"{health_pct:.1f}%")
+
+    if rows_removed > 0:
+        st.warning(f"Note: {rows_removed} anomalous sensor readings were filtered to maintain statistical accuracy.")
 st.markdown("---")
 st.caption("Live + Historical AQI Dashboard")
