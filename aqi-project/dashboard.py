@@ -43,15 +43,17 @@ df = pd.read_sql(query, conn)
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
 # remove unwanted columns
-# Convert columns to numeric (fix weird scaling issue)
+# Convert to numeric
 df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
 df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
 df["overall_aqi"] = pd.to_numeric(df["overall_aqi"], errors="coerce")
-df = df[
-    df["temperature"].between(0, 60) &
-    df["humidity"].between(0, 100) &
-    df["overall_aqi"].between(0, 500)
-]
+
+# Keep only valid AQI
+df = df[df["overall_aqi"].between(0, 500)]
+
+# Fill missing values instead of deleting rows
+df["temperature"] = df.groupby("city")["temperature"].transform(lambda x: x.fillna(x.median()))
+df["humidity"] = df.groupby("city")["humidity"].transform(lambda x: x.fillna(x.median()))
 df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 
