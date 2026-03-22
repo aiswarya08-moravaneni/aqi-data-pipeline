@@ -18,10 +18,15 @@ st.title("🌍 Real-Time AQI Monitoring Dashboard")
 socket.setdefaulttimeout(30)
 
 @st.cache_resource
+
 def get_connection():
-    return psycopg2.connect(
-        "postgresql://postgres.oxcycpqjisgegrhewdov:AiS%23u2%29jkfty@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require"
-)
+
+    return psycopg2.connect(
+
+        "postgresql://postgres.oxcycpqjisgegrhewdov:AiS%23u2%29jkfty@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require"
+
+    )
+
 
 conn = get_connection()
 
