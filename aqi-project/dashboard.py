@@ -236,17 +236,6 @@ yearly = filtered.groupby("year")[["overall_aqi","temperature","humidity"]].mean
 fig = px.line(yearly, x="year", y=["overall_aqi","temperature","humidity"], markers=True)
 st.plotly_chart(fig, width="stretch", key="yearly_chart")
 
-st.subheader("📊 Atmospheric Correlation Analysis")
-
-view_option = st.radio("Data Range", ["All Historical Data", "Today Only"], horizontal=True)
-
-selected_city_corr = st.selectbox("Select City for Correlation", df["city"].unique(), key="corr")
-
-plot_df = df[df["city"] == selected_city_corr]
-
-if view_option == "Today Only":
-    plot_df = plot_df[plot_df['timestamp'].dt.date == datetime.date.today()]
-
 
 
 st.subheader("📊 Atmospheric Correlation Analysis")
