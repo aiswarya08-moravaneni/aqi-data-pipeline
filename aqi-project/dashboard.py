@@ -42,27 +42,6 @@ df = df.drop(columns=["co", "so2", "o3"], errors="ignore")
 
 
 from sklearn.ensemble import RandomForestRegressor
-
-
-
-def generate_7day_forecast(df):
-    df = df.copy()
-    
-    # Safety Check: Ensure the source column exists
-    if 'overall_aqi' in df.columns:
-        df['AQI'] = df['overall_aqi']
-    elif 'aqi' in df.columns:
-        df['AQI'] = df['aqi']
-    else:
-        # If neither exists, we can't proceed
-        return pd.DataFrame(), 0 
-
-    # Drop missing values and keep only valid AQI numbers
-    df = df.dropna(subset=['AQI'])
-    df = df[df['AQI'] > 0]
-    
-    # Rest of your code...
-    aqi_values = df['AQI'].values
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 
@@ -234,22 +213,38 @@ yearly = filtered.groupby("year")[["overall_aqi","temperature","humidity"]].mean
 
 fig = px.line(yearly, x="year", y=["overall_aqi","temperature","humidity"], markers=True)
 st.plotly_chart(fig, width="stretch", key="yearly_chart")
+# -----------------------------
+# Date Filter Toggle
+# -----------------------------
+st.subheader("📊 Data View Options")
+view_option = st.radio("Select Data Range for Plots", ["All Historical Data", "Today Only"], horizontal=True)
 
+if view_option == "Today Only":
+    plot_df = df[df['timestamp'].dt.date == datetime.date.today()]
+else:
+    plot_df = df
 # -----------------------------
 # Temperature vs AQI
 # -----------------------------
-st.subheader("🌡 Temperature vs AQI")
-
-fig = px.scatter(df, x="temperature", y="overall_aqi", color="city")
-st.plotly_chart(fig, width="stretch", key="temp_chart")
-
+st.subheader("🌡 Temperature vs AQI Analysis")
+# Adding a trendline shows if AQI goes UP or DOWN as Temp increases
+fig = px.scatter(plot_df, x="temperature", y="overall_aqi", color="city", 
+                 opacity=0.5, trendline="ols",
+                 title="Correlation between Ambient Temperature and Air Quality")
+st.plotly_chart(fig, width="stretch")
 # -----------------------------
 # Humidity vs AQI
 # -----------------------------
-st.subheader("💧 Humidity vs AQI")
+st.subheader("💧 Humidity vs AQI Analysis")
 
-fig = px.scatter(df, x="humidity", y="overall_aqi", color="city")
-st.plotly_chart(fig, width="stretch", key="humidity_chart")
+# Adding 'ols' trendline and reducing opacity to see data density
+fig = px.scatter(plot_df, x="humidity", y="overall_aqi", color="city", 
+                 opacity=0.4, trendline="ols",
+                 title="Impact of Atmospheric Humidity on Pollutant Concentration")
+
+# Improving the layout for better readability
+fig.update_layout(xaxis_title="Humidity (%)", yaxis_title="Overall AQI")
+st.plotly_chart(fig, width="stretch", key="humidity_chart_updated")
 
 # -----------------------------
 # Seasonal Analysis
@@ -275,7 +270,7 @@ if st.button("Generate Forecast"):
         m1, m2, m3 = st.columns(3)
         m1.metric("Selected City", forecast_city)
         m2.metric("Model Reliability (MAE)", f"{model_mae:.2f}", help="Average prediction error in AQI units. Lower is better.")
-        m3.metric("Algorithm", "Random Forest")
+        m3.metric("Algorithm", "Multivariate Random Forest")
 
         st.markdown("---")
         
