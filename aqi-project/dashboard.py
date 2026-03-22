@@ -88,65 +88,65 @@ def generate_7day_forecast(df_input):
 
         return pd.DataFrame(), 0.0
 
-    # Clean data
-    df = df.dropna(subset=cols)
-    df = df[df['overall_aqi'] > 0]
+    # Clean data
+    df = df.dropna(subset=cols)
+    df = df[df['overall_aqi'] > 0]
 
-    if len(df) < 20: return pd.DataFrame(), 0.0
+    if len(df) < 20: return pd.DataFrame(), 0.0
 
-    # Prepare the 2D array for the sliding window
-    # Column 0: AQI, Column 1: Temp, Column 2: Humidity
-    data_values = df[cols].values.astype(float)
-    window_size = 5
+    # Prepare the 2D array for the sliding window
+    # Column 0: AQI, Column 1: Temp, Column 2: Humidity
+    data_values = df[cols].values.astype(float)
+    window_size = 5
 
-    X, y = create_sliding_window_multivariate(data_values, window_size)
+    X, y = create_sliding_window_multivariate(data_values, window_size)
 
-    # Train/Test Split & MAE
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
-    mae = mean_absolute_error(y_test, model.predict(X_test))
+    # Train/Test Split & MAE
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    mae = mean_absolute_error(y_test, model.predict(X_test))
 
-    # Recursive Forecast
-    model.fit(X, y)
-    current_window_data = data_values[-window_size:] # Get last 5 days of all 3 variables
-    
-    predictions = []
-    # We'll use the average Temp/Humidity of the last week to fill the "future" weather
-    avg_temp = df['temperature'].tail(7).mean()
-    avg_hum = df['humidity'].tail(7).mean()
+    # Recursive Forecast
+    model.fit(X, y)
+    current_window_data = data_values[-window_size:] # Get last 5 days of all 3 variables
+    
+    predictions = []
+    # We'll use the average Temp/Humidity of the last week to fill the "future" weather
+    avg_temp = df['temperature'].tail(7).mean()
+    avg_hum = df['humidity'].tail(7).mean()
 
-    for _ in range(7):
-        # Predict next AQI
-        input_row = current_window_data.flatten().reshape(1, -1)
-        pred_aqi = model.predict(input_row)[0]
-        predictions.append(int(pred_aqi))
-        
-        # SLIDE: Create the next step's row [Predicted AQI, Future Temp, Future Hum]
-        next_step_data = np.array([[pred_aqi, avg_temp, avg_hum]])
-        current_window_data = np.vstack([current_window_data[1:], next_step_data])
+    for _ in range(7):
+        # Predict next AQI
+        input_row = current_window_data.flatten().reshape(1, -1)
+        pred_aqi = model.predict(input_row)[0]
+        predictions.append(int(pred_aqi))
+        
+        # SLIDE: Create the next step's row [Predicted AQI, Future Temp, Future Hum]
+        next_step_data = np.array([[pred_aqi, avg_temp, avg_hum]])
+        current_window_data = np.vstack([current_window_data[1:], next_step_data])
 
-    # Format Output
-    last_date = pd.to_datetime(df['timestamp'].iloc[-1])
-    forecast_df = pd.DataFrame({
-        'Date': [last_date + pd.Timedelta(days=i) for i in range(1, 8)],
-        'Predicted AQI': predictions
-    })
-    forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
+    # Format Output
+    last_date = pd.to_datetime(df['timestamp'].iloc[-1])
+    forecast_df = pd.DataFrame({
+        'Date': [last_date + pd.Timedelta(days=i) for i in range(1, 8)],
+        'Predicted AQI': predictions
+    })
+    forecast_df['Status'] = forecast_df['Predicted AQI'].apply(lambda x: classify_aqi(x)[0])
 
-    return forecast_df, mae
+    return forecast_df, mae
 # -----------------------------
 # AQI Classification
 # -----------------------------
 def classify_aqi(aqi):
-    if aqi <= 50:
-        return "Good 🟢", "#2ecc71"
-    elif aqi <= 100:
-        return "Moderate 🟡", "#f1c40f"
-    elif aqi <= 200:
-        return "Unhealthy 🟠", "#e67e22"
-    else:
-        return "Hazardous 🔴", "#e74c3c"
+    if aqi <= 50:
+        return "Good 🟢", "#2ecc71"
+    elif aqi <= 100:
+        return "Moderate 🟡", "#f1c40f"
+    elif aqi <= 200:
+        return "Unhealthy 🟠", "#e67e22"
+    else:
+        return "Hazardous 🔴", "#e74c3c"
 
 # -----------------------------
 # Live AQI Cards
@@ -158,21 +158,21 @@ latest = df.sort_values("timestamp").groupby("city").tail(1)
 cols = st.columns(len(latest))
 
 for i, (_, row) in enumerate(latest.iterrows()):
-    category, color = classify_aqi(row["overall_aqi"])
+    category, color = classify_aqi(row["overall_aqi"])
 
-    with cols[i]:
-        st.markdown(
-            f"""
-            <div style="background-color:{color};
-            padding:20px;border-radius:10px;
-            text-align:center;color:white;">
-            <b>{row['city']}</b><br>
-            AQI: {row['overall_aqi']}<br>
-            {category}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    with cols[i]:
+        st.markdown(
+            f"""
+            <div style="background-color:{color};
+            padding:20px;border-radius:10px;
+            text-align:center;color:white;">
+            <b>{row['city']}</b><br>
+            AQI: {row['overall_aqi']}<br>
+            {category}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
 # -----------------------------
 # Table
@@ -182,7 +182,7 @@ st.dataframe(latest)
 
 # alert
 if not latest[latest["overall_aqi"] > 200].empty:
-    st.error("⚠️ Hazardous air quality detected!")
+    st.error("⚠️ Hazardous air quality detected!")
 
 # -----------------------------
 # Trend
@@ -288,29 +288,29 @@ forecast_city = st.selectbox("Select City for Forecast", sorted(df["city"].uniqu
 # 3. DEFINE the input variable HERE (Before the button)
 forecast_df_input = df[df["city"] == forecast_city]
 if st.button("Generate Forecast"):
-    forecast_data, model_mae = generate_7day_forecast(forecast_df_input)
+    forecast_data, model_mae = generate_7day_forecast(forecast_df_input)
 
-    if not forecast_data.empty:
-        # Create a "Dashboard Header" with metrics
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Selected City", forecast_city)
-        m2.metric("Model Reliability (MAE)", f"{model_mae:.2f}", help="Average prediction error in AQI units. Lower is better.")
-        m3.metric("Algorithm", "Random Forest")
+    if not forecast_data.empty:
+        # Create a "Dashboard Header" with metrics
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Selected City", forecast_city)
+        m2.metric("Model Reliability (MAE)", f"{model_mae:.2f}", help="Average prediction error in AQI units. Lower is better.")
+        m3.metric("Algorithm", "Random Forest")
 
-        st.markdown("---")
-        
-        # Display the table with your custom status labels
-        st.subheader("7-Day Outlook")
-        st.dataframe(forecast_data, use_container_width=True, hide_index=True)
+        st.markdown("---")
+        
+        # Display the table with your custom status labels
+        st.subheader("7-Day Outlook")
+        st.dataframe(forecast_data, use_container_width=True, hide_index=True)
 
-        # Plotting the trend
-        fig = px.line(
-            forecast_data, x='Date', y='Predicted AQI',
-            title=f"Future Trend: {forecast_city}",
-            markers=True, text='Status'
-        )
-        fig.update_traces(line_color='#FF4B4B', textposition="top center")
-        st.plotly_chart(fig)
+        # Plotting the trend
+        fig = px.line(
+            forecast_data, x='Date', y='Predicted AQI',
+            title=f"Future Trend: {forecast_city}",
+            markers=True, text='Status'
+        )
+        fig.update_traces(line_color='#FF4B4B', textposition="top center")
+        st.plotly_chart(fig)
 # -----------------------------
 # Metrics
 # -----------------------------
