@@ -310,7 +310,7 @@ st.plotly_chart(fig_hum, use_container_width=True)
 
 # 💧 Humidity vs AQI
 fig_hum = px.scatter(
-    plot_df,
+    scatter_df,
     x="humidity",
     y="overall_aqi",
     color="city",
