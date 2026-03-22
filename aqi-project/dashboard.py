@@ -249,29 +249,69 @@ if view_option == "Today Only":
 
 
 
-st.subheader("🌍 Impact of Atmospheric Humidity on Pollutant Concentration")
+st.subheader("📊 Atmospheric Correlation Analysis")
 
-# Use full dataset (not filtered by city)
-fig = px.scatter(
-    df,
-    x="humidity",
-    y="overall_aqi",
-    color="city",  # multiple cities
-    opacity=0.6,
-    trendline="ols",
-    title="Impact of Atmospheric Humidity on Pollutant Concentration"
+view_option = st.radio(
+    "Data Range",
+    ["All Historical Data", "Today Only"],
+    horizontal=True
 )
 
-# Improve appearance
-fig.update_traces(marker=dict(size=6))
+plot_df = df[df['timestamp'].dt.date == datetime.date.today()] if view_option == "Today Only" else df
 
-fig.update_layout(
-    xaxis_title="Humidity (%)",
-    yaxis_title="Overall AQI",
-    legend_title="City"
-)
+# Optional: remove extreme outliers for cleaner plot
+plot_df = plot_df[plot_df["overall_aqi"] < 300]
 
-st.plotly_chart(fig, use_container_width=True)
+col_p1, col_p2 = st.columns(2)
+
+# 🌡 Temperature vs AQI
+with col_p1:
+    fig_temp = px.scatter(
+        plot_df,
+        x="temperature",
+        y="overall_aqi",
+        color="city",
+        opacity=0.6,
+        trendline="ols",
+        trendline_scope="trace",  # 🔥 separate trendline per city
+        title="Impact of Temperature on AQI",
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+
+    fig_temp.update_traces(marker=dict(size=6))
+
+    fig_temp.update_layout(
+        xaxis_title="Temperature (°C)",
+        yaxis_title="Overall AQI",
+        legend_title="City"
+    )
+
+    st.plotly_chart(fig_temp, use_container_width=True)
+
+
+# 💧 Humidity vs AQI
+with col_p2:
+    fig_hum = px.scatter(
+        plot_df,
+        x="humidity",
+        y="overall_aqi",
+        color="city",
+        opacity=0.6,
+        trendline="ols",
+        trendline_scope="trace",  # 🔥 separate trendline per city
+        title="Impact of Atmospheric Humidity on Pollutant Concentration",
+        color_discrete_sequence=px.colors.qualitative.Set2
+    )
+
+    fig_hum.update_traces(marker=dict(size=6))
+
+    fig_hum.update_layout(
+        xaxis_title="Humidity (%)",
+        yaxis_title="Overall AQI",
+        legend_title="City"
+    )
+
+    st.plotly_chart(fig_hum, use_container_width=True)
 # -----------------------------
 # Seasonal Analysis
 # -----------------------------
