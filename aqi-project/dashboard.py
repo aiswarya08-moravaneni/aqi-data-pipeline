@@ -42,7 +42,6 @@ ORDER BY timestamp
 df = pd.read_sql(query, conn)
 df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
 df["timestamp"] = df["timestamp"].dt.tz_convert("Asia/Kolkata")
-df["timestamp"] = df["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
 # remove unwanted columns
 # Convert to numeric
@@ -191,16 +190,12 @@ latest = df.sort_values("timestamp").groupby("city").tail(1)
 
 # 👉 Create display version
 latest_display = latest.copy()
-
-# ✅ Convert timestamp to IST string
 latest_display["timestamp"] = latest_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-# ✅ Select ONLY required columns (THIS removes o3, co, so2)
 latest_display = latest_display[
     ["timestamp", "city", "overall_aqi", "pm25", "pm10", "no2", "temperature", "humidity"]
 ]
 
-# 👉 Show cleaned table
 st.dataframe(latest_display)
 
 # alert
