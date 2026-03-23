@@ -40,7 +40,8 @@ ORDER BY timestamp
 """
 
 df = pd.read_sql(query, conn)
-df["timestamp"] = pd.to_datetime(df["timestamp"])
+df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+df["timestamp"] = df["timestamp"].dt.tz_convert("Asia/Kolkata")
 
 # remove unwanted columns
 # Convert to numeric
