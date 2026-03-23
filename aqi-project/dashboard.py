@@ -186,7 +186,16 @@ for i, (_, row) in enumerate(latest.iterrows()):
 # Table
 # -----------------------------
 st.subheader("📊 Latest AQI by City")
-st.dataframe(latest)
+
+latest_display = latest.copy()
+
+# Convert timestamp to readable IST
+latest_display["timestamp"] = latest_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+# ❌ Remove unwanted columns
+latest_display = latest_display.drop(columns=["o3", "so2", "co"], errors="ignore")
+
+st.dataframe(latest_display)
 
 # alert
 if not latest[latest["overall_aqi"] > 200].empty:
