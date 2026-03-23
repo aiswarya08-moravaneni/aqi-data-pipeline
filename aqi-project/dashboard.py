@@ -187,14 +187,20 @@ for i, (_, row) in enumerate(latest.iterrows()):
 # -----------------------------
 st.subheader("📊 Latest AQI by City")
 
+latest = df.sort_values("timestamp").groupby("city").tail(1)
+
+# 👉 Create display version
 latest_display = latest.copy()
 
-# Convert timestamp to readable IST
+# ✅ Convert timestamp to IST string
 latest_display["timestamp"] = latest_display["timestamp"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
-# ❌ Remove unwanted columns
-latest_display = latest_display.drop(columns=["o3", "so2", "co"], errors="ignore")
+# ✅ Select ONLY required columns (THIS removes o3, co, so2)
+latest_display = latest_display[
+    ["timestamp", "city", "overall_aqi", "pm25", "pm10", "no2", "temperature", "humidity"]
+]
 
+# 👉 Show cleaned table
 st.dataframe(latest_display)
 
 # alert
