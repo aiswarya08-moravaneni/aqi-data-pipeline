@@ -34,12 +34,31 @@ Unlike standard dashboards that only show past data, this system features a **Re
 
 ## 📈 Performance Metrics
 The model currently operates with a **Mean Absolute Error (MAE)** of approximately `16.5`, providing a highly reliable trend analysis for urban planning and public health awareness.
+### 🛠️ Data Sanitization Layer
+To ensure the integrity of the Predictive Models, the pipeline implements a 
+strict "Physical Constraint Filter." This handles real-world sensor glitches, 
+such as the 393,275°C temperature anomaly detected at the Hyderabad station.
+
+```python
+# Filtering out non-physical sensor anomalies before training
+df = df[(df['temperature'] >= -10) & (df['temperature'] <= 60)]
+df = df[(df['humidity'] >= 0) & (df['humidity'] <= 100)]
+df = df[(df['overall_aqi'] >= 0) & (df['overall_aqi'] <= 500)]
 
 ## 🌟 Future Roadmap
 - [ ] **Satellite Data Integration:** Merging ground-station AQI with Sentinel-5P satellite imagery (IIRS/VSSC focus).
 - [ ] **Deep Learning Migration:** Implementing LSTM (Long Short-Term Memory) networks for improved long-term temporal dependencies.
 - [ ] **Automated Alerts:** Email/SMS triggers when AQI crosses the 'Hazardous' threshold (200+).
+## Screenshots
 
+![Main Dashboard](assets/main_dashboard.png)
+
+## 📸 System Insights
+
+| 🔮 7-Day Predictive Analytics | 🌡️ Multivariate Correlations |
+| :---: | :---: |
+| ![Forecast](assets/forecast_chart.png) | ![Correlation](assets/correlation_plots.png) |
+| *Recursive Random Forest Forecast* | *OLS Regression: Temp/Humidity vs AQI* |
 ---
 **Developed by:** MORAVANENI AISWARYA LAKSHMI  
-*B.Tech CSE (Data Science) @ SVCE Tirupati*
+*B.Tech CSE (Data ) @ SVCE Tirupati*
