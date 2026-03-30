@@ -44,7 +44,7 @@ such as the 393,275°C temperature anomaly detected at the Hyderabad station.
 df = df[(df['temperature'] >= -10) & (df['temperature'] <= 60)]
 df = df[(df['humidity'] >= 0) & (df['humidity'] <= 100)]
 df = df[(df['overall_aqi'] >= 0) & (df['overall_aqi'] <= 500)]
-
+```
 ## 🌟 Future Roadmap
 - [ ] **Satellite Data Integration:** Merging ground-station AQI with Sentinel-5P satellite imagery (IIRS/VSSC focus).
 - [ ] **Deep Learning Migration:** Implementing LSTM (Long Short-Term Memory) networks for improved long-term temporal dependencies.
