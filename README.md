@@ -62,3 +62,12 @@ df = df[(df['overall_aqi'] >= 0) & (df['overall_aqi'] <= 500)]
 ---
 **Developed by:** MORAVANENI AISWARYA LAKSHMI  
 *B.Tech CSE (Data ) @ SVCE Tirupati*
+
+## 📄 License
+This project is licensed under the MIT License.
+
+## ©️ Copyright
+© 2026 Moravaneni Aiswarya Lakshmi. All rights reserved.
+
+This project is created for educational and portfolio purposes.
+Unauthorized copying or direct reuse without credit is discouraged.
