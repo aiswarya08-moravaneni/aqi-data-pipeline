@@ -356,7 +356,7 @@ c3.metric("Min AQI", df["overall_aqi"].min())
 st.markdown("---")
 st.caption("Live + Historical AQI Dashboard")
 """
-Project: Crop Yield Prediction using NDVI
+Project: aqi-data-pipeline
 Author: Aiswarya Moravaneni
 Year: 2026
 
